@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Monochrome Gradient Demo</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      transition: background 1s ease;
+      background: linear-gradient(
+        90deg,
+        hsl(134, 65%, 90%),
+        hsl(134, 65%, 50%),
+        hsl(134, 65%, 20%)
+      );
+      color: white;
+      font-family: "Segoe UI", sans-serif;
+      text-align: center;
+      animation: bgShift 20s infinite linear;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 1rem;
+      margin-bottom: 20px;
+      opacity: 0.85;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 16px;
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.4);
+      transform: scale(1.05);
+    }
+
+    @keyframes bgShift {
+      from {
+        background-position: 0% 50%;
+      }
+      to {
+        background-position: 100% 50%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Monochrome Gradient</h1>
+  <p>A simple experiment with HSL monochrome palettes</p>
+  <button id="changeBtn">Change Color</button>
+
+  <script>
+    const hues = [134, 200, 260, 0]; // green, blue, purple, red
+    let index = 0;
+    const btn = document.getElementById("changeBtn");
+
+    function setGradient(hue) {
+      document.body.style.background = `linear-gradient(
+        90deg,
+        hsl(${hue}, 65%, 90%),
+        hsl(${hue}, 65%, 50%),
+        hsl(${hue}, 65%, 20%)
+      )`;
+    }
+
+    // 点击按钮切换颜色
+    btn.addEventListener("click", () => {
+      index = (index + 1) % hues.length;
+      setGradient(hues[index]);
+    });
+
+    // 自动切换颜色（每 5 秒）
+    setInterval(() => {
+      index = (index + 1) % hues.length;
+      setGradient(hues[index]);
+    }, 5000);
+  </script>
+</body>
+</html>
