@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -27,7 +28,8 @@
             box-shadow: 0 0 15px 5px red;
             transform: translate(-50%, -50%);
             pointer-events: none;
-            opacity: 0; /* Initially hidden */
+            opacity: 0;
+            /* Initially hidden */
             transition: opacity 0.2s;
         }
 
@@ -48,6 +50,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="info">Move your mouse</div>
@@ -201,7 +204,7 @@
                 let finalDy = attractDy + separateDy;
 
                 // Move only if outside the safety distance (for chasing) or if scattering
-                if ( (isChasing && distanceToTarget > cat.safetyDistance) || !isChasing && distanceToTarget > 1 ) {
+                if ((isChasing && distanceToTarget > cat.safetyDistance) || !isChasing && distanceToTarget > 1) {
                     cat.x += finalDx * cat.easing * 10;
                     cat.y += finalDy * cat.easing * 10;
                 }
@@ -228,4 +231,5 @@
     </script>
 
 </body>
+
 </html>
