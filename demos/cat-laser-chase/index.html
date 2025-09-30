@@ -184,7 +184,7 @@
                 // Separation force from other cats
                 let separateDx = 0;
                 let separateDy = 0;
-                const separationDistance = 50; // Minimum distance between cats
+                const separationDistance = 70; // Minimum distance between cats
 
                 cats.forEach((otherCat, j) => {
                     if (i !== j) {
@@ -192,21 +192,32 @@
                         const dy = cat.y - otherCat.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
 
-                        if (distance < separationDistance) {
-                            separateDx += dx / distance;
-                            separateDy += dy / distance;
+                        if (distance > 0 && distance < separationDistance) {
+                            // The force is stronger when closer, creating a smoother repulsion.
+                            const force = 1 - (distance / separationDistance);
+                            separateDx += (dx / distance) * force;
+                            separateDy += (dy / distance) * force;
                         }
                     }
                 });
 
-                // Combine forces
-                let finalDx = attractDx + separateDx;
-                let finalDy = attractDy + separateDy;
+                // Combine forces with weights
+                const separationWeight = 1.5;
+                let finalDx = attractDx + separateDx * separationWeight;
+                let finalDy = attractDy + separateDy * separationWeight;
+
+                // Normalize the final vector to ensure consistent speed and prevent jittering
+                const finalLength = Math.sqrt(finalDx * finalDx + finalDy * finalDy);
+                if (finalLength > 0) {
+                    finalDx /= finalLength;
+                    finalDy /= finalLength;
+                }
 
                 // Move only if outside the safety distance (for chasing) or if scattering
                 if ((isChasing && distanceToTarget > cat.safetyDistance) || !isChasing && distanceToTarget > 1) {
-                    cat.x += finalDx * cat.easing * 10;
-                    cat.y += finalDy * cat.easing * 10;
+                    const speed = 10;
+                    cat.x += finalDx * cat.easing * speed;
+                    cat.y += finalDy * cat.easing * speed;
                 }
 
                 // Angle towards the movement direction
