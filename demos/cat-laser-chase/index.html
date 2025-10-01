@@ -121,6 +121,8 @@
                 element: catElement,
                 x: startX,
                 y: startY,
+                vx: 0,
+                vy: 0,
                 easing: easingFactors[i],
                 safetyDistance: safetyDistances[i],
                 targetX: startX, // Add target for scattering
@@ -170,21 +172,24 @@
                     targetY = cat.targetY;
                 }
 
-                // Attraction force towards the target
+                // --- Start of New Physics-Based Movement ---
+
+                // 1. Attraction force towards the target
                 let attractDx = targetX - cat.x;
                 let attractDy = targetY - cat.y;
-                const distanceToTarget = Math.sqrt(attractDx * attractDx + attractDy * attractDy);
+                let distanceToTarget = Math.sqrt(attractDx * attractDx + attractDy * attractDy);
 
-                // Normalize attraction vector
-                if (distanceToTarget > 0) {
-                    attractDx /= distanceToTarget;
-                    attractDy /= distanceToTarget;
+                // When chasing, if a cat is inside its safety distance, the attraction becomes repulsion.
+                if (isChasing && distanceToTarget < cat.safetyDistance) {
+                    const repulsionStrength = 1 - distanceToTarget / cat.safetyDistance;
+                    attractDx = -attractDx * repulsionStrength;
+                    attractDy = -attractDy * repulsionStrength;
                 }
 
-                // Separation force from other cats
+                // 2. Separation force from other cats
                 let separateDx = 0;
                 let separateDy = 0;
-                const separationDistance = 70; // Minimum distance between cats
+                const separationDistance = 70; // Give them a bit more personal space
 
                 cats.forEach((otherCat, j) => {
                     if (i !== j) {
@@ -193,7 +198,6 @@
                         const distance = Math.sqrt(dx * dx + dy * dy);
 
                         if (distance > 0 && distance < separationDistance) {
-                            // The force is stronger when closer, creating a smoother repulsion.
                             const force = 1 - (distance / separationDistance);
                             separateDx += (dx / distance) * force;
                             separateDy += (dy / distance) * force;
@@ -201,32 +205,43 @@
                     }
                 });
 
-                // Combine forces with weights
-                const separationWeight = 1.5;
-                let finalDx = attractDx + separateDx * separationWeight;
-                let finalDy = attractDy + separateDy * separationWeight;
+                // 3. Combine forces
+                const attractionStrength = 0.08;
+                const separationStrength = 1.1;
 
-                // Normalize the final vector to ensure consistent speed and prevent jittering
-                const finalLength = Math.sqrt(finalDx * finalDx + finalDy * finalDy);
-                if (finalLength > 0) {
-                    finalDx /= finalLength;
-                    finalDy /= finalLength;
+                let forceX = attractDx * attractionStrength + separateDx * separationStrength;
+                let forceY = attractDy * attractionStrength + separateDy * separationStrength;
+
+                // 4. Apply force to velocity
+                cat.vx += forceX * cat.easing;
+                cat.vy += forceY * cat.easing;
+
+                // 5. Apply damping (friction)
+                const damping = 0.9; // A bit less damping to feel more 'slippery'
+                cat.vx *= damping;
+                cat.vy *= damping;
+
+                // 6. Update position based on velocity
+                if (!isChasing && distanceToTarget < 2) {
+                    // Stop completely when scattered and at the target
+                    cat.vx = 0;
+                    cat.vy = 0;
+                } else {
+                    cat.x += cat.vx;
+                    cat.y += cat.vy;
                 }
 
-                // Move only if outside the safety distance (for chasing) or if scattering
-                if ((isChasing && distanceToTarget > cat.safetyDistance) || !isChasing && distanceToTarget > 1) {
-                    const speed = 10;
-                    cat.x += finalDx * cat.easing * speed;
-                    cat.y += finalDy * cat.easing * speed;
-                }
+                // --- End of New Physics-Based Movement ---
 
-                // Angle towards the movement direction
-                const angle = Math.atan2(finalDy, finalDx) * (180 / Math.PI);
+
+                // Angle towards the movement direction (now based on velocity)
+                const angle = Math.atan2(cat.vy, cat.vx) * (180 / Math.PI);
 
                 // Add sway effect when moving
                 let sway = 0;
-                if (distanceToTarget > 1) { // Only sway if the cat is moving
-                    cat.swayTime += 0.1;
+                const speed = Math.sqrt(cat.vx * cat.vx + cat.vy * cat.vy);
+                if (speed > 0.1) { // Only sway if the cat is moving significantly
+                    cat.swayTime += speed * 0.05; // Sway speed depends on cat's speed
                     sway = Math.sin(cat.swayTime) * 10; // 10 is the sway amplitude
                 }
 
