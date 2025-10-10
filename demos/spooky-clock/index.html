@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<style>
+  :root {
+    --bg-black: #070608;
+    --blood-solid: #b40a14;
+    --sky-blue-top: #4da9ff;
+    --sky-blue-mid: #89d3ff;
+    --sky-white-bottom: #ffffff;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: #fff7f7;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto;
+    transition: background 0.5s ease;
+    overflow: hidden;
+  }
+
+  .sky-gradient {
+    background: linear-gradient(to bottom,
+        var(--sky-blue-top) 0%,
+        var(--sky-blue-mid) 40%,
+        var(--sky-white-bottom) 100%);
+  }
+
+  .blood-gradient {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(to bottom,
+        color-mix(in srgb, var(--blood-solid) 85%, transparent 15%) 0%,
+        color-mix(in srgb, var(--blood-solid) 55%, transparent 45%) 20%,
+        rgba(0, 0, 0, 0.9) 45%,
+        var(--bg-black) 100%);
+    color: #fff7f7;
+    /* 血色背景下的文字颜色 */
+  }
+
+  .vessel {
+    display: flex;
+    justify-content: space-between;
+    height: 100vh;
+  }
+
+  .left,
+  .right {
+    position: relative;
+  }
+
+  .sky-house {
+    position: absolute;
+    bottom: 20px;
+    width: 400px;
+    height: 350px;
+  }
+
+  .pumpkin-group {
+    position: absolute;
+    bottom: 25px;
+    left: 340px;
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    /* 基本间距由各自偏移控制 */
+    z-index: 10;
+  }
+
+  .pumpkin-svg {
+    width: 70px;
+    height: 70px;
+    position: relative;
+    transform-origin: center bottom;
+    transition: transform 0.4s ease, opacity 0.3s ease;
+  }
+
+  /* 🎃 不同姿态的南瓜 */
+  .pumpkin-svg:nth-child(1) {
+    transform: rotate(-8deg) scale(1);
+    left: -10px;
+    z-index: 3;
+  }
+
+  .pumpkin-svg:nth-child(2) {
+    transform: rotate(0deg) scaleX(-1) translateY(6px);
+    left: -15px;
+    z-index: 2;
+  }
+
+  .pumpkin-svg:nth-child(3) {
+    transform: rotate(12deg) scale(0.95);
+    left: -10px;
+    z-index: 4;
+  }
+
+  .pumpkin-svg:nth-child(4) {
+    transform: rotate(-25deg) scale(0.9);
+    left: -5px;
+    z-index: 1;
+  }
+
+  .pumpkin-svg:nth-child(5) {
+    transform: rotate(15deg) scaleX(-1) translateY(8px);
+    left: -12px;
+    z-index: 5;
+  }
+
+  .pumpkin-svg:nth-child(6) {
+    transform: rotate(90deg) scale(0.85) translateY(10px);
+    left: -20px;
+    z-index: 6;
+  }
+
+  /* 🎃 hover 效果（轻微放大，像被注意到） */
+  .pumpkin-svg:hover {
+    transform: scale(1.05) rotate(var(--angle, 0deg));
+    filter: brightness(1.1);
+    z-index: 10;
+  }
+
+  .sun-icon {
+    position: absolute;
+    top: 20px;
+    right: 40px;
+    width: 100px;
+    height: 100px;
+    transition: opacity 0.3s ease;
+  }
+
+  .bird-icon {
+    position: absolute;
+    top: 120px;
+    /* 起始点稍低一些 */
+    left: -320px;
+    /* 从画面左侧外进入 */
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+    animation: bird-fly 10s ease-in-out infinite;
+  }
+
+  /* 🕊️ 飞行动画关键帧（带上下波动 + 淡出） */
+  @keyframes bird-fly {
+    0% {
+      transform: translate(0, 0) scale(1) rotate(0deg);
+      opacity: 0;
+    }
+
+    10% {
+      opacity: 1;
+      /* 进入画面 */
+    }
+
+    20% {
+      transform: translate(250px, -30px) rotate(2deg);
+    }
+
+    35% {
+      transform: translate(450px, -60px) rotate(-3deg);
+    }
+
+    50% {
+      transform: translate(650px, -90px) rotate(4deg);
+    }
+
+    65% {
+      transform: translate(850px, -110px) rotate(-2deg);
+    }
+
+    80% {
+      transform: translate(1050px, -150px) rotate(3deg) scale(0.9);
+      opacity: 0.8;
+    }
+
+    100% {
+      transform: translate(1300px, -180px) scale(0.8) rotate(0deg);
+      opacity: 0;
+    }
+  }
+
+  .hidden-night {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+  }
+
+  /* 白天重新出现 */
+  .visible-day {
+    opacity: 1;
+    transition: opacity 0.8s ease;
+  }
+
+  .middle {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .spider-svg {
+    position: absolute;
+    top: -150px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: 50;
+  }
+
+  /* 🕷️ 掉落动画 */
+  @keyframes spider-fall {
+    0% {
+      top: -150px;
+      opacity: 0;
+      transform: translateX(-50%) rotate(0deg);
+    }
+
+    20% {
+      opacity: 1;
+    }
+
+    60% {
+      top: 45%;
+      transform: translateX(-50%) rotate(8deg);
+    }
+
+    75% {
+      top: 42%;
+      transform: translateX(-50%) rotate(-8deg);
+    }
+
+    100% {
+      top: 45%;
+      transform: translateX(-50%) rotate(0deg);
+    }
+  }
+
+  /* 🕸️ 回到顶部 + 小摆动 */
+  @keyframes spider-return {
+    0% {
+      top: 45%;
+      opacity: 1;
+    }
+
+    50% {
+      top: 20%;
+      transform: translateX(-50%) rotate(3deg);
+    }
+
+    100% {
+      top: -150px;
+      opacity: 0;
+      transform: translateX(-50%) rotate(0deg);
+    }
+  }
+
+  .spider-svg.active {
+    animation: spider-fall 1.6s cubic-bezier(0.25, 1.25, 0.5, 1) forwards;
+  }
+
+  .spider-svg.return {
+    animation: spider-return 1.2s ease forwards;
+  }
+
+  /* 幽灵样式（夜间缓缓飘落） */
+  .ghost-icon {
+    position: absolute;
+    top: -160px;
+    width: 84px;
+    height: auto;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 60;
+    transform: translateY(0);
+  }
+
+  .ghost-icon.fall {
+    animation: ghost-fall 2.4s cubic-bezier(0.22, 0.9, 0.32, 1) forwards;
+  }
+
+  @keyframes ghost-fall {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    70% {
+      transform: translateY(60vh) scale(1.02);
+      opacity: 0.95;
+    }
+    100% {
+      transform: translateY(68vh) scale(1);
+      opacity: 0.0; /* 末尾淡出 */
+    }
+  }
+
+  .click-hint {
+    position: absolute;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+  }
+</style>
+
+<body class="sky-gradient">
+  <div class="vessel">
+    <div class="left">
+      <img class="sky-house" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/house.svg" alt="house">
+
+      <div class="pumpkin-group">
+        <img class="pumpkin-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/pumpkin.svg" alt="pumpkin">
+        <img class="pumpkin-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/pumpkin.svg" alt="pumpkin">
+        <img class="pumpkin-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/pumpkin.svg" alt="pumpkin">
+        <img class="pumpkin-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/pumpkin.svg" alt="pumpkin">
+        <img class="pumpkin-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/pumpkin.svg" alt="pumpkin">
+        <img class="pumpkin-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/pumpkin.svg" alt="pumpkin">
+      </div>
+    </div>
+
+    <div class="middle">
+      <img class="sun-icon" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/sun.svg" alt="sun">
+      <img class="bird-icon" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/bird.svg" alt="bird">
+
+      <!-- spiders -->
+      <img class="spider-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/spider.svg" alt="spider">
+      <img class="spider-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/spider.svg" alt="spider">
+      <img class="spider-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/spider.svg" alt="spider">
+      <img class="spider-svg" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/spider.svg" alt="spider">
+
+      <!-- ghosts -->
+      <img class="ghost-icon" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/ghost.svg" alt="ghost">
+      <img class="ghost-icon" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/ghost.svg" alt="ghost">
+      <img class="ghost-icon" src="https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/ghost.svg" alt="ghost">
+
+      <div class="click-hint">Click the sky... if you dare</div>
+    </div>
+
+    <div class="right"></div>
+  </div>
+
+  <script>
+    // assets
+    const PUMPKIN_DAY = 'https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/pumpkin.svg';
+    const PUMPKIN_NIGHT = 'https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/jack-o\'-lantern.svg';
+    const SUN_DAY = 'https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/sun.svg';
+    const SUN_NIGHT = 'https://raw.githubusercontent.com/ooBean/AssetHub/main/svg/codepen_demo/spooky-clock/midnight.svg';
+
+  // cached DOM nodes (assigned on DOMContentLoaded)
+  const body = document.body;
+  let sunImg;
+  let birdImg;
+  let pumpkinImgs = [];
+  let spiders = [];
+  let ghosts = [];
+  let hint;
+
+    // helper: position spiders horizontally around center
+    function positionSpiders(spacing = 220) {
+      if (!spiders || spiders.length === 0) return;
+      const count = spiders.length;
+      const center = 0; // we'll use calc with 50% as center
+      // distribute from -((n-1)/2)*spacing to +...*spacing
+      const start = -((count - 1) / 2) * spacing;
+      spiders.forEach((spider, i) => {
+        const offset = Math.round(start + i * spacing);
+        spider.style.left = `calc(50% + ${offset}px)`;
+      });
+    }
+
+    function toggleBackground() {
+      // Ensure DOM caches exist (in case this is invoked before DOMContentLoaded)
+      if (!sunImg) sunImg = document.querySelector('.sun-icon');
+      if (!birdImg) birdImg = document.querySelector('.bird-icon');
+      if (!pumpkinImgs || pumpkinImgs.length === 0) pumpkinImgs = Array.from(document.querySelectorAll('.pumpkin-group img'));
+      if (!spiders || spiders.length === 0) spiders = Array.from(document.querySelectorAll('.spider-svg'));
+      if (!ghosts || ghosts.length === 0) ghosts = Array.from(document.querySelectorAll('.ghost-icon'));
+      if (!hint) hint = document.querySelector('.click-hint');
+
+      // 切换到夜间
+      if (body.classList.contains('sky-gradient')) {
+        body.classList.replace('sky-gradient', 'blood-gradient');
+
+        // 隐藏提示和鸟
+        if (hint) hint.classList.add('hidden-night');
+        if (birdImg) {
+          if (birdImg.classList) {
+            birdImg.classList.remove('visible-day');
+            birdImg.classList.add('hidden-night');
+          }
+        }
+
+        // 平滑替换南瓜和太阳图片
+        if (pumpkinImgs && pumpkinImgs.length) {
+          pumpkinImgs.forEach(img => {
+            img.dataset._orig = img.src;
+            fadeSwap(img, PUMPKIN_NIGHT);
+          });
+        }
+        if (sunImg) {
+          sunImg.dataset._orig = sunImg.src;
+          fadeSwap(sunImg, SUN_NIGHT);
+        }
+
+        // 蜘蛛分散并依次掉落
+        if (spiders && spiders.length) {
+          positionSpiders(220);
+          spiders.forEach((spider, i) => {
+            spider.classList.remove('return', 'active');
+            void spider.offsetWidth;
+            setTimeout(() => spider.classList.add('active'), i * 400);
+          });
+        }
+
+        // 幽灵飘落
+        if (ghosts && ghosts.length) {
+          ghosts.forEach((g, idx) => {
+            g.classList.remove('fall');
+            const base = -320 + (640 / Math.max(1, ghosts.length - 1)) * idx;
+            const jitter = (Math.random() - 0.5) * 160;
+            g.style.left = `calc(50% + ${Math.round(base + jitter)}px)`;
+            setTimeout(() => g.classList.add('fall'), 300 + idx * 260 + Math.floor(Math.random() * 200));
+          });
+        }
+
+      } else {
+        // 切回白天
+        body.classList.replace('blood-gradient', 'sky-gradient');
+
+        // 恢复提示和鸟
+        if (hint) hint.classList.remove('hidden-night');
+        if (birdImg && birdImg.classList) {
+          birdImg.classList.remove('hidden-night');
+          birdImg.classList.add('visible-day');
+        }
+
+        // 平滑恢复南瓜和太阳
+        if (pumpkinImgs && pumpkinImgs.length) {
+          pumpkinImgs.forEach(img => {
+            const target = img.dataset._orig || PUMPKIN_DAY;
+            fadeSwap(img, target, () => delete img.dataset._orig);
+          });
+        }
+        if (sunImg) {
+          const target = sunImg.dataset._orig || SUN_DAY;
+          fadeSwap(sunImg, target, () => delete sunImg.dataset._orig);
+        }
+
+        // 蜘蛛返回顶部
+        if (spiders && spiders.length) {
+          spiders.forEach((spider, i) => {
+            spider.classList.remove('active', 'return');
+            void spider.offsetWidth;
+            setTimeout(() => spider.classList.add('return'), i * 300);
+          });
+        }
+
+        // 隐藏幽灵并清理位置
+        if (ghosts && ghosts.length) {
+          ghosts.forEach(g => {
+            g.classList.remove('fall');
+            g.style.opacity = '';
+            g.style.left = '';
+          });
+        }
+      }
+    }
+
+    // helper: fade out -> swap src -> fade in
+    function fadeSwap(imgEl, newSrc, cb) {
+      if (!imgEl) return;
+      imgEl.style.transition = 'opacity 0.28s ease';
+      imgEl.style.opacity = '0';
+      // 等待淡出完成（300ms）再替换 src
+      setTimeout(() => {
+        imgEl.src = newSrc;
+        // 强制重绘，确保图片加载/替换生效
+        void imgEl.offsetWidth;
+        imgEl.style.opacity = '1';
+        if (cb) setTimeout(cb, 320);
+      }, 300);
+    }
+
+    // 🧠 补充：在动画结束时移除类名，确保下次可重复触发
+    document.querySelectorAll('.spider-svg').forEach(spider => {
+      spider.addEventListener('animationend', () => {
+        spider.classList.remove('active', 'return');
+      });
+    });
+
+    function flyRandomly() {
+      const bird = document.querySelector('.bird-icon');
+      if (!bird) {
+        // try again later if bird is not yet present
+        setTimeout(flyRandomly, 2000);
+        return;
+      }
+      bird.style.animation = 'none';
+      void bird.offsetWidth; // 强制重绘以重置动画
+      bird.style.animation = 'bird-fly 10s ease-in-out 1';
+      const delay = 3000 + Math.random() * 10000; // 每 3~13 秒随机飞一次
+      setTimeout(flyRandomly, delay);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // assign cached DOM nodes now that DOM is ready
+      sunImg = document.querySelector('.sun-icon');
+      birdImg = document.querySelector('.bird-icon');
+      pumpkinImgs = Array.from(document.querySelectorAll('.pumpkin-group img'));
+      spiders = Array.from(document.querySelectorAll('.spider-svg'));
+      ghosts = Array.from(document.querySelectorAll('.ghost-icon'));
+      hint = document.querySelector('.click-hint');
+
+      // 初始化蜘蛛位置，避免默认都重叠在 50%
+      positionSpiders(220);
+
+      setTimeout(() => {
+        if (hint) hint.classList.add('visible');
+      }, 2000);
+
+      // 监听鼠标点击事件，触发背景切换
+      document.addEventListener('click', toggleBackground);
+      // 监听键盘按键事件，例如按空格键切换背景
+      document.addEventListener('keydown', (event) => {
+        if (event.code === 'Space') toggleBackground();
+      });
+
+      // start bird fly cycle
+      flyRandomly();
+    });
+  </script>
+</body>
+
+</html>
