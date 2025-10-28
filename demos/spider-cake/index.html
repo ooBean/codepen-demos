@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oreo Spider Sandwich</title>
+    <style>
+        body {
+            background-color: #ee9ca7;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            /* 新增：为背景色添加过渡效果 */
+            transition: background-color 1s ease;
+        }
+
+
+        #canvas {
+            height: 80vh;
+            max-height: 300px;
+            overflow: visible;
+            border: solid 2px #fff;
+        }
+    </style>
+</head>
+
+
+<body>
+    <canvas id="canvas" width="300" height="300"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+      <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext("2d");
+
+        const scale = 1.2;
+
+        // 辅助函数：绘制圆角矩形
+        function drawRoundRect(ctx, x, y, width, height, radius) {
+            if (width < 2 * radius) radius = width / 2;
+            if (height < 2 * radius) radius = height / 2;
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.arcTo(x + width, y, x + width, y + height, radius);
+            ctx.arcTo(x + width, y + height, x, y + height, radius);
+            ctx.arcTo(x, y + height, x, y, radius);
+            ctx.arcTo(x, y, x + width, y, radius);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // 新增：一个专门绘制滴落奶油的函数
+        function drawIcingWithDrips(ctx, x, y, width, height, radius, color, darkColor) {
+            const overhang = 10;
+            x -= overhang;
+            width += overhang * 2;
+
+            const gradient = ctx.createLinearGradient(x, y, x, y + height * 1.5);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, darkColor);
+            ctx.fillStyle = gradient;
+
+            ctx.beginPath();
+
+            // 从左上角下方开始
+            ctx.moveTo(x, y + radius);
+            // 使用二次贝塞尔曲线创建更柔和的、受重力影响的顶角，解决“翘起”问题
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            // 顶部直线
+            ctx.lineTo(x + width - radius, y);
+            // 右侧柔和顶角
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+
+            // 右侧垂直边缘
+            ctx.lineTo(x + width, y + height * 0.7);
+
+            // 重新设计的滴落曲线，确保始终向下，彻底解决缝隙问题
+            ctx.bezierCurveTo(x + width, y + height * 1.2, x + width * 0.85, y + height * 1.4, x + width * 0.75, y + height * 1.1);
+            ctx.bezierCurveTo(x + width * 0.6, y + height * 1.5, x + width * 0.4, y + height * 1.5, x + width * 0.25, y + height * 1.1);
+            ctx.bezierCurveTo(x + width * 0.15, y + height * 1.4, x, y + height * 1.2, x, y + height * 0.7);
+
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // 1. 数据更新：为每一层增加一个用于渐变的 darkerColor
+        const cakeLayers = [
+            // 从下往上定义每一层
+            { name: "plate", x: (300 - 220 * scale) / 2, y: -80, width: 220 * scale, height: 10 * scale, color: '#f8f8f8', darkerColor: '#e0e0e0', radius: 5 * scale },
+            { name: "bottomLayer", x: (300 - 200 * scale) / 2, y: -80, width: 200 * scale, height: 40 * scale, color: '#8b6a60', darkerColor: '#70554d', radius: 8 * scale },
+            { name: "filling", x: (300 - 200 * scale) / 2, y: -80, width: 200 * scale, height: 20 * scale, color: '#a88679', darkerColor: '#8e7166', radius: 8 * scale },
+            { name: "topLayer", x: (300 - 200 * scale) / 2, y: -80, width: 200 * scale, height: 40 * scale, color: '#8b6a60', darkerColor: '#70554d', radius: 8 * scale },
+            { name: "icing", x: (300 - 200 * scale) / 2, y: -80, width: 200 * scale, height: 30 * scale, color: '#fefae9', darkerColor: '#f2e6d8', radius: 12 * scale }
+        ];
+
+        // 新增：蜡烛的数据对象
+        const candle = {
+            x: canvas.width / 2 - (5 * scale),
+            y: -30 * scale, // 初始位置在画布外
+            width: 10 * scale,
+            height: 30 * scale,
+            color: '#f0a0a0'
+        };
+
+        // 新增：蜘蛛的数据，我们创建三只
+        const spiders = [
+            {
+                x: canvas.width * 0.3,
+                y: 0, // 蛛丝的起点Y值
+                bodyRadius: 8 * scale,
+                headRadius: 5 * scale,
+                color: '#222',
+                silk: { length: 0 },
+                angle: 0 // 用于摇摆的初始角度
+            },
+            {
+                x: canvas.width * 0.55,
+                y: 0,
+                bodyRadius: 8 * scale,
+                headRadius: 5 * scale,
+                color: '#222',
+                silk: { length: 0 },
+                angle: 0
+            },
+            {
+                x: canvas.width * 0.8,
+                y: 0,
+                bodyRadius: 8 * scale,
+                headRadius: 5 * scale,
+                color: '#222',
+                silk: { length: 0 },
+                angle: 0
+            }
+        ];
+
+        // 新增：一个控制蜘蛛是否出现的“开关”
+        let shouldDrawSpiders = false;
+
+        // 2. 绘图函数更新：使用渐变色和新的奶油绘制函数
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            cakeLayers.forEach(layer => {
+                // 如果是奶油层，调用专用的绘制函数
+                if (layer.name === 'icing') {
+                    drawIcingWithDrips(ctx, layer.x, layer.y, layer.width, layer.height, layer.radius, layer.color, layer.darkerColor);
+                } else {
+                    // 其他层，使用渐变色填充圆角矩形
+                    const gradient = ctx.createLinearGradient(layer.x, layer.y, layer.x, layer.y + layer.height);
+                    gradient.addColorStop(0, layer.color);
+                    gradient.addColorStop(1, layer.darkerColor);
+                    ctx.fillStyle = gradient;
+                    drawRoundRect(ctx, layer.x, layer.y, layer.width, layer.height, layer.radius);
+                }
+            });
+
+            // 新增：绘制蜡烛和火焰
+            // 绘制蜡烛主体
+            ctx.fillStyle = candle.color;
+            ctx.fillRect(candle.x, candle.y, candle.width, candle.height);
+            // 绘制火焰
+            if (candle.y > 0) { // 只有蜡烛在画布内时才绘制火焰
+                const flameX = candle.x + candle.width / 2;
+                const flameY = candle.y;
+                const flameRadius = 5 * scale;
+                const flameGradient = ctx.createRadialGradient(flameX, flameY, 0, flameX, flameY, flameRadius);
+                flameGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                flameGradient.addColorStop(0.3, 'rgba(255, 220, 0, 1)');
+                flameGradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+
+                ctx.fillStyle = flameGradient;
+                ctx.beginPath();
+                ctx.arc(flameX, flameY, flameRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 新增：只有在“开关”打开时，才绘制所有蜘蛛
+            if (shouldDrawSpiders) {
+                spiders.forEach(drawSpider);
+            }
+        }
+
+        // 新增：绘制单只蜘蛛（包括蛛丝和摇摆）的函数
+        function drawSpider(spider) {
+            ctx.save();
+            // 将画布原点移动到蛛丝的悬挂点，并根据角度旋转
+            ctx.translate(spider.x, spider.y);
+            ctx.rotate(spider.angle * Math.PI / 180);
+
+            // 绘制蛛丝
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, spider.silk.length);
+            ctx.stroke();
+
+            // 蜘蛛身体的当前位置
+            const spiderBodyY = spider.silk.length;
+
+            // 绘制8条腿
+            ctx.strokeStyle = spider.color;
+            ctx.lineWidth = 2;
+            const legLength = spider.bodyRadius * 1.8;
+            for (let i = 0; i < 8; i++) {
+                const angle = (Math.PI / 4 * i) * (i % 2 === 0 ? 0.8 : 1.2); // 让腿不是完全对称
+                const legEndX = Math.sin(angle) * legLength;
+                const legEndY = spiderBodyY + Math.cos(angle) * legLength * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(0, spiderBodyY);
+                // 使用曲线画腿，让它更生动
+                ctx.bezierCurveTo(legEndX * 0.5, spiderBodyY + 10, legEndX, legEndY, legEndX, legEndY);
+                ctx.stroke();
+            }
+
+            // 绘制身体
+            ctx.fillStyle = spider.color;
+            ctx.beginPath();
+            ctx.arc(0, spiderBodyY, spider.bodyRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 绘制头部
+            ctx.beginPath();
+            ctx.arc(0, spiderBodyY - spider.bodyRadius * 0.8, spider.headRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // 3. GSAP Timeline (基本不变)
+        const tl = gsap.timeline({
+            onUpdate: draw,
+            // 关键改动：在蛋糕动画完成后，执行新的动画
+            onComplete: animateCandleAndSceneChange
+        });
+
+        const plateY = 260;
+        const bottomLayerY = plateY - (40 * scale);
+        const fillingY = bottomLayerY - (20 * scale);
+        const topLayerY = fillingY - (40 * scale);
+        const icingY = topLayerY - (30 * scale); // 调整奶油的最终位置
+
+        // 安排每一层落下的动画
+        // 将 ease 从 'bounce.out' 改为 'power2.out'，模拟更柔和的着陆效果
+        tl.to(cakeLayers[0], { y: plateY, duration: 0.8, ease: 'power2.out' })
+          .to(cakeLayers[1], { y: bottomLayerY, duration: 0.8, ease: 'power2.out' }, "-=0.6") // 盘子落下后 0.2 秒，这层开始落
+          .to(cakeLayers[2], { y: fillingY, duration: 0.8, ease: 'power2.out' }, "-=0.6")
+          .to(cakeLayers[3], { y: topLayerY, duration: 0.8, ease: 'power2.out' }, "-=0.6")
+          .to(cakeLayers[4], { y: icingY, duration: 0.8, ease: 'power2.out' }, "-=0.6");
+
+        // 新增：蜡烛动画和场景切换的函数
+        function animateCandleAndSceneChange() {
+            gsap.to(candle, {
+                y: cakeLayers[4].y - candle.height, // 修正：从[0] (盘子) 改为 [4] (奶油)，确保落在最顶层
+                duration: 0.5,
+                ease: 'bounce.out',
+                onUpdate: draw,
+                onComplete: () => {
+                    // 切换背景色
+                    document.body.style.backgroundColor = '#2c1f3c';
+                    // 关键改动：在此刻打开“开关”，允许蜘蛛被绘制
+                    shouldDrawSpiders = true;
+                    // 然后才开始蜘蛛的动画
+                    animateSpiders();
+                }
+            });
+        }
+
+        // 新增：蜘蛛动画函数
+        function animateSpiders() {
+            // 创建一个新的时间线来控制所有蜘蛛
+            const spiderTl = gsap.timeline();
+
+            // 让蜘蛛的丝线伸长，一个接一个地落下
+            spiderTl.to(spiders.map(s => s.silk), {
+                length: (i) => 120 + i * 25, // 每只蜘蛛的丝长不同
+                duration: 2,
+                ease: 'power1.inOut',
+                stagger: 0.4, // 每只蜘蛛间隔0.4秒开始下落
+                onUpdate: draw // 确保在下落过程中不断重绘
+            });
+
+            // 为每只蜘蛛添加无限摇摆的动画
+            spiders.forEach((spider, i) => {
+                gsap.to(spider, {
+                    angle: i % 2 === 0 ? 7 : -7, // 再次修正：从几乎看不见的3度调整为更合适的7度，找到“微风”的完美感觉
+                    duration: 2.5 + Math.random(), // 摇摆周期随机
+                    ease: 'sine.inOut',
+                    onUpdate: draw, // 关键修正：确保在摇摆动画的每一帧都重绘画布，实现无限循环效果
+                    repeat: -1, // 无限重复
+                    yoyo: true, // 来回摇摆
+                    delay: 2 + i * 0.4 // 等待该蜘蛛落下后开始摇摆
+                });
+            });
+        }
+
+        draw();
+    </script>
+
+</body>
+
+
+</html>
