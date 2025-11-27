@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sticky Notes</title>
     <style>
+        :root {
+            --note-hue: 200;
+        }
+
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(to right, #ff9a9e, #fecfef);
             overflow: hidden;
         }
 
@@ -21,42 +25,71 @@
 
         .note-wrapper {
             position: absolute;
-            width: 200px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border-radius: 8px;
+            width: 250px;
+            min-height: 150px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            border-radius: 15px;
             cursor: move;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #333;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .note-wrapper:hover {
+            transform: scale(1.05);
+            box-shadow: 0 20px 45px rgba(0,0,0,0.25);
         }
 
         .note-body {
-            padding: 15px;
-            background-color: #fff;
+            padding: 20px;
+            box-sizing: border-box;
+            height: 100%;
         }
 
         .note-content {
-            min-height: 100px;
+            min-height: 120px;
             outline: none;
+            font-size: 1.1em;
+            line-height: 1.5;
         }
 
         .note-close {
             position: absolute;
-            top: 5px;
-            right: 5px;
+            top: 10px;
+            right: 10px;
             cursor: pointer;
+            font-size: 1.5em;
+            color: rgba(0,0,0,0.5);
+            transition: color 0.2s;
+        }
+
+        .note-close:hover {
+            color: rgba(0,0,0,0.8);
         }
 
         .add-note-btn {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
-            background-color: #4CAF50;
+            background-color: #ff7eb9;
             color: white;
             text-align: center;
-            line-height: 50px;
-            font-size: 24px;
+            line-height: 60px;
+            font-size: 30px;
             cursor: pointer;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .add-note-btn:hover {
+            transform: scale(1.1);
+            background-color: #ff6baf;
         }
     </style>
 </head>
@@ -73,6 +106,8 @@
             noteWrapper.className = 'note-wrapper';
             noteWrapper.style.left = `${x}px`;
             noteWrapper.style.top = `${y}px`;
+            noteWrapper.style.setProperty('--note-hue', Math.random() * 360);
+            noteWrapper.style.background = `hsla(var(--note-hue, 200), 70%, 80%, 0.7)`;
 
             const noteBody = document.createElement('div');
             noteBody.className = 'note-body';
