@@ -79,6 +79,7 @@
             const noteContent = document.createElement('div');
             noteContent.className = 'note-content';
             noteContent.textContent = content;
+            noteContent.contentEditable = true; // Make content editable
 
             const closeBtn = document.createElement('div');
             closeBtn.className = 'note-close';
@@ -95,6 +96,14 @@
             closeBtn.addEventListener('click', () => {
                 noteWrapper.remove();
                 notes = notes.filter(n => n !== noteData);
+            });
+
+            // Auto-delete if content is empty when the note loses focus
+            noteContent.addEventListener('blur', () => {
+                if (noteContent.textContent.trim() === '') {
+                    noteWrapper.remove();
+                    notes = notes.filter(n => n !== noteData);
+                }
             });
 
             return noteData;
