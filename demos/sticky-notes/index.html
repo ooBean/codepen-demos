@@ -34,7 +34,19 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #333;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.3s, opacity 0.3s;
+            container-type: inline-size;
+        }
+
+        @container style(--is-editing: 1) {
+            .note-wrapper {
+                background: hsla(var(--note-hue, 200), 70%, 80%, 1);
+                backdrop-filter: none;
+            }
+            .note-close {
+                opacity: 0;
+                pointer-events: none;
+            }
         }
 
         .note-wrapper:hover {
@@ -53,6 +65,7 @@
             outline: none;
             font-size: 1.1em;
             line-height: 1.5;
+            caret-color: #333;
         }
 
         .note-close {
@@ -62,7 +75,7 @@
             cursor: pointer;
             font-size: 1.5em;
             color: rgba(0,0,0,0.5);
-            transition: color 0.2s;
+            transition: color 0.2s, opacity 0.3s;
         }
 
         .note-close:hover {
@@ -137,7 +150,12 @@
             });
 
             // Auto-delete if content is empty when the note loses focus
+            noteContent.addEventListener('focus', () => {
+                noteWrapper.style.setProperty('--is-editing', '1');
+            });
+
             noteContent.addEventListener('blur', () => {
+                noteWrapper.style.removeProperty('--is-editing');
                 if (noteContent.textContent.trim() === '') {
                     noteWrapper.remove();
                     notes = notes.filter(n => n !== noteData);
