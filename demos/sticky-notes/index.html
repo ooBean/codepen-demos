@@ -63,7 +63,48 @@
     <div class="notes-container" id="notesContainer"></div>
     <button class="add-note-btn" id="addNoteBtn">+</button>
     <script>
-        // Script content will be added in subsequent commits
+        const notesContainer = document.getElementById('notesContainer');
+        const addNoteBtn = document.getElementById('addNoteBtn');
+        let notes = [];
+
+        function createNote(x, y, content = 'New Note') {
+            const noteWrapper = document.createElement('div');
+            noteWrapper.className = 'note-wrapper';
+            noteWrapper.style.left = `${x}px`;
+            noteWrapper.style.top = `${y}px`;
+
+            const noteBody = document.createElement('div');
+            noteBody.className = 'note-body';
+
+            const noteContent = document.createElement('div');
+            noteContent.className = 'note-content';
+            noteContent.textContent = content;
+
+            const closeBtn = document.createElement('div');
+            closeBtn.className = 'note-close';
+            closeBtn.textContent = '×';
+
+            noteBody.appendChild(noteContent);
+            noteBody.appendChild(closeBtn);
+            noteWrapper.appendChild(noteBody);
+            notesContainer.appendChild(noteWrapper);
+
+            const noteData = { element: noteWrapper, content, x, y };
+            notes.push(noteData);
+
+            closeBtn.addEventListener('click', () => {
+                noteWrapper.remove();
+                notes = notes.filter(n => n !== noteData);
+            });
+
+            return noteData;
+        }
+
+        addNoteBtn.addEventListener('click', () => {
+            const x = Math.random() * (window.innerWidth - 220);
+            const y = Math.random() * (window.innerHeight - 150);
+            createNote(x, y);
+        });
     </script>
 </body>
 </html>
