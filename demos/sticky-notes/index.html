@@ -10,386 +10,60 @@
             padding: 0;
             font-family: Arial, sans-serif;
             background-color: #f0f0f0;
-            overflow: hidden; /* Prevent scrolling */
+            overflow: hidden;
         }
 
         .notes-container {
             position: relative;
             width: 100%;
             height: 100vh;
-            container-name: notes; /* Name the container for style queries */
         }
 
         .note-wrapper {
             position: absolute;
-            cursor: move;
-            transition: transform 0.2s, z-index 0.2s;
-            animation: popup 0.5s ease-out;
-            z-index: 10;
-            /* Make the wrapper a style container */
-            container-type: style;
-        }
-
-        .note-wrapper:hover {
-            transform: scale(1.05);
-            z-index: 1000;
+            width: 200px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
         }
 
         .note-body {
-            width: 200px;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
             padding: 15px;
-            padding-right: 35px; /* Space for close button */
-            box-sizing: border-box;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid hsla(var(--note-hue, 0), 70%, 85%, 0.5);
-            background-color: hsla(var(--note-hue, 0), 70%, 85%, 0.6);
-            backdrop-filter: blur(14px) saturate(130%);
-            -webkit-backdrop-filter: blur(14px) saturate(130%);
-        }
-
-        .note-body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 50%;
-            pointer-events: none;
-            background: linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0));
-            mix-blend-mode: screen;
-        }
-
-        .note-body::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            border-radius: 12px; /* Match parent */
-            background: radial-gradient(
-                ellipse at 20% 0%,
-                rgba(255, 255, 255, 0.5) 0%,
-                rgba(255, 255, 255, 0) 70%
-            );
+            background-color: #fff;
         }
 
         .note-content {
-            min-height: 20px;
-            font-size: 16px;
-            line-height: 1.4;
+            min-height: 100px;
             outline: none;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-            cursor: text;
-        }
-
-        .note-content:empty::before {
-            content: attr(data-placeholder);
-            color: grey;
-            pointer-events: none;
         }
 
         .note-close {
             position: absolute;
             top: 5px;
-            right: 10px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background-color: rgba(0,0,0,0.1);
+            right: 5px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            transition: background-color 0.2s;
-            z-index: 12;
-        }
-
-        .note-close:hover {
-            background-color: rgba(0,0,0,0.2);
         }
 
         .add-note-btn {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             background-color: #4CAF50;
             color: white;
-            font-size: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: transform 0.2s;
-            z-index: 2000;
-        }
-
-        .add-note-btn:hover {
-            transform: scale(1.1);
-        }
-
-        @keyframes popup {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        /* Style Query for editing state */
-        @container style(--is-editing: 1) {
-            .note-body {
-                box-shadow: 0 0 5px 2px rgba(76, 175, 80, 0.7);
-            }
-        }
-
-        .instructions {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 2em;
-            color: rgba(0, 0, 0, 0.1);
-            z-index: 1;
-            pointer-events: none;
             text-align: center;
-            white-space: nowrap;
-        }
-
-        /* CSS class for the deletion animation */
-        .note-wrapper.is-deleting {
-            opacity: 0 !important;
-            transform: scale(0.95) !important;
-            transition: opacity 0.2s ease-in, transform 0.2s ease-in;
+            line-height: 50px;
+            font-size: 24px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <!-- Inspired by Shirleypp012: https://codepen.io/Shirleypp012/pen/MYKPoZK -->
     <div class="notes-container" id="notesContainer"></div>
-    <h1 class="instructions">随写随存，点触可改，删去如风</h1>
     <button class="add-note-btn" id="addNoteBtn">+</button>
-
     <script>
-        const notesContainer = document.getElementById('notesContainer');
-        let notes = [];
-        let currentEditingNote = null;
-        let isPlacingNote = false;
-
-        // Helper: lightweight element creator to reduce repetitive DOM code
-        function createEl(tag, options = {}, children = []) {
-            const el = document.createElement(tag);
-            if (options.class) el.className = options.class;
-            if (options.text) el.textContent = options.text;
-            if (options.attrs) {
-                for (const [k, v] of Object.entries(options.attrs)) el.setAttribute(k, v);
-            }
-            if (options.style) Object.assign(el.style, options.style);
-            (children || []).forEach(child => el.appendChild(child));
-            return el;
-        }
-
-        function createNote(x, y, content = '') {
-            const noteWrapper = createEl('div', { class: 'note-wrapper' });
-            noteWrapper.style.left = `${x}px`;
-            noteWrapper.style.top = `${y}px`;
-
-            const hue = Math.floor(Math.random() * 360);
-            const noteBody = createEl('div', { class: 'note-body' });
-            noteBody.style.setProperty('--note-hue', hue);
-
-            const noteContent = createEl('div', { class: 'note-content', attrs: { contenteditable: 'true' } });
-            noteContent.textContent = content;
-            if (!content) noteContent.setAttribute('data-placeholder', 'New Note');
-
-            const closeBtn = createEl('div', { class: 'note-close', text: '×' });
-
-            noteBody.appendChild(noteContent);
-            noteBody.appendChild(closeBtn);
-            noteWrapper.appendChild(noteBody);
-            notesContainer.appendChild(noteWrapper);
-
-            const noteData = { element: noteWrapper, content, x, y };
-            notes.push(noteData);
-
-            // Click to edit (focus) - keep per-note for simplicity
-            noteWrapper.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (currentEditingNote && currentEditingNote !== noteWrapper) exitEditingState();
-                noteWrapper.style.setProperty('--is-editing', '1');
-                currentEditingNote = noteWrapper;
-                noteContent.focus();
-            });
-
-            makeDraggable(noteWrapper, noteData);
-            return noteWrapper;
-        }
-
-        // Event delegation for note content behaviors: input, Enter key, and blur-like behavior
-        notesContainer.addEventListener('input', (e) => {
-            const target = e.target;
-            if (!target.classList || !target.classList.contains('note-content')) return;
-            const wrapper = target.closest('.note-wrapper');
-            const nd = notes.find(n => n.element === wrapper);
-            if (nd) nd.content = target.textContent;
-        });
-
-        notesContainer.addEventListener('keydown', (e) => {
-            const target = e.target;
-            if (!target.classList || !target.classList.contains('note-content')) return;
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                target.blur();
-                exitEditingState();
-            }
-        });
-
-        // focusout bubbles and serves as delegated blur
-        notesContainer.addEventListener('focusout', (e) => {
-            const target = e.target;
-            if (!target.classList || !target.classList.contains('note-content')) return;
-            const wrapper = target.closest('.note-wrapper');
-            const nd = notes.find(n => n.element === wrapper);
-            if (target.textContent.trim() === '') {
-                if (wrapper) wrapper.remove();
-                if (nd) notes = notes.filter(n => n !== nd);
-            }
-            if (currentEditingNote === wrapper) exitEditingState();
-        });
-
-        function exitEditingState() {
-            if (currentEditingNote) {
-                currentEditingNote.style.setProperty('--is-editing', '0');
-                currentEditingNote = null;
-            }
-        }
-
-        function makeDraggable(element, noteData) {
-            let offsetX, offsetY;
-
-            const onMouseMove = (e) => {
-                let x = e.clientX - offsetX;
-                let y = e.clientY - offsetY;
-
-                const rect = element.getBoundingClientRect();
-                const containerRect = notesContainer.getBoundingClientRect();
-                x = Math.max(0, Math.min(x, containerRect.width - rect.width));
-                y = Math.max(0, Math.min(y, containerRect.height - rect.height));
-
-                element.style.left = `${x}px`;
-                element.style.top = `${y}px`;
-                noteData.x = x;
-                noteData.y = y;
-            };
-
-            const onMouseUp = () => {
-                element.style.zIndex = '10'; // Reset z-index
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            };
-
-            element.addEventListener('mousedown', (e) => {
-                if (e.target.classList.contains('note-content') || e.target.classList.contains('note-close')) {
-                    return;
-                }
-                offsetX = e.clientX - element.offsetLeft;
-                offsetY = e.clientY - element.offsetTop;
-                element.style.zIndex = '1001'; // Bring to front
-
-                // Add listeners only when dragging starts
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            });
-        }
-
-        document.body.addEventListener('click', (e) => {
-            if (e.target === document.body || e.target === notesContainer) {
-                 if (currentEditingNote) {
-                    exitEditingState();
-                }
-            }
-        });
-
-        document.getElementById('addNoteBtn').addEventListener('click', () => {
-            isPlacingNote = true;
-            notesContainer.style.cursor = 'crosshair';
-        });
-
-        notesContainer.addEventListener('click', (e) => {
-            const target = e.target;
-
-            // Delegated delete: clicking the close button
-            if (target.classList && target.classList.contains('note-close')) {
-                e.stopPropagation();
-                const wrapper = target.closest('.note-wrapper');
-                if (wrapper) {
-                    const idx = notes.findIndex(n => n.element === wrapper);
-                    if (idx !== -1) notes.splice(idx, 1);
-                    wrapper.classList.add('is-deleting');
-                    wrapper.addEventListener('transitionend', () => wrapper.remove(), { once: true });
-                }
-                return;
-            }
-
-            if (isPlacingNote) {
-                // Adjust for note dimensions to center it on the cursor
-                const noteWidth = 200;
-                const noteHeight = 50; // Approximate height
-                const x = e.clientX - (noteWidth / 2);
-                const y = e.clientY - (noteHeight / 2);
-
-                const newNote = createNote(x, y, ''); // Create with empty content
-                newNote.click();
-                const contentDiv = newNote.querySelector('.note-content');
-                contentDiv.focus();
-
-                isPlacingNote = false;
-                notesContainer.style.cursor = 'default';
-            }
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && isPlacingNote) {
-                isPlacingNote = false;
-                notesContainer.style.cursor = 'default';
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const messages = [
-                "Don't forget to buy milk!", "Meeting at 3 PM", "Call John back",
-                "Finish the report by Friday", "Happy Birthday!", "Remember to take out the trash",
-                "Project deadline is next week", "Go to the gym", "明天下午三点开会",
-                "别忘了买牛奶！", "给张三回电话", "周五前完成报告", "生日快乐！",
-                "记得倒垃圾", "项目截止日期是下周", "去健身房",
-                "Pick up dry cleaning", "Schedule dentist appointment", "Water the plants", "Pay the bills",
-                "取干洗的衣服", "预约牙医", "给植物浇水", "付账单"
-            ];
-            const rect = notesContainer.getBoundingClientRect();
-
-            // Use a loop with setTimeout to create the staggered "popcorn" effect
-            messages.forEach((message, i) => {
-                const x = Math.max(10, Math.random() * (rect.width - 220));
-                const y = Math.max(10, Math.random() * (rect.height - 120));
-
-                setTimeout(() => {
-                    createNote(x, y, message);
-                }, i * 70); // Stagger each note's creation by 70ms
-            });
-        });
+        // Script content will be added in subsequent commits
     </script>
 </body>
 </html>
