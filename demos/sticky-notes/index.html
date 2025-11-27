@@ -24,6 +24,7 @@
             width: 200px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
+            cursor: move;
         }
 
         .note-body {
@@ -93,6 +94,8 @@
             const noteData = { element: noteWrapper, content, x, y };
             notes.push(noteData);
 
+            makeDraggable(noteWrapper, noteData);
+
             closeBtn.addEventListener('click', () => {
                 noteWrapper.remove();
                 notes = notes.filter(n => n !== noteData);
@@ -107,6 +110,38 @@
             });
 
             return noteData;
+        }
+
+        function makeDraggable(element, noteData) {
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            element.addEventListener('mousedown', (e) => {
+                if (e.target.className === 'note-content' || e.target.className === 'note-close') {
+                    return;
+                }
+                isDragging = true;
+                offsetX = e.clientX - element.getBoundingClientRect().left;
+                offsetY = e.clientY - element.getBoundingClientRect().top;
+                element.style.zIndex = 1000;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const x = e.clientX - offsetX;
+                const y = e.clientY - offsetY;
+                element.style.left = `${x}px`;
+                element.style.top = `${y}px`;
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    element.style.zIndex = '';
+                    noteData.x = parseInt(element.style.left);
+                    noteData.y = parseInt(element.style.top);
+                }
+            });
         }
 
         addNoteBtn.addEventListener('click', () => {
