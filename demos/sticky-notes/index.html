@@ -129,12 +129,14 @@
         let activeNote = null;
         let highestZ = 0;
 
+        // rAF-driven dragging: keep last event and batch updates for smoothness
+        let rafPending = false;
+        let lastPointerEvent = null;
+
         function createEl(tag, props = {}) {
             const el = document.createElement(tag);
             Object.assign(el, props);
-            if (props.style) {
-                Object.assign(el.style, props.style);
-            }
+            if (props.style) Object.assign(el.style, props.style);
             return el;
         }
 
@@ -146,17 +148,22 @@
                     left: `${x}px`,
                     top: `${y}px`,
                     '--note-hue': Math.random() * 360,
-                    background: `hsla(var(--note-hue, 200), 70%, 80%, 0.7)`
-                }
+                    background: `hsla(var(--note-hue, 200), 70%, 80%, 0.7)`,
+                    touchAction: 'none'
+                },
+                tabIndex: 0,
+                role: 'article',
+                'aria-label': 'Sticky note'
             });
 
             const noteBody = createEl('div', { className: 'note-body' });
             const noteContent = createEl('div', {
                 className: 'note-content',
                 textContent: content,
-                contentEditable: true
+                contentEditable: true,
+                'aria-label': 'Note content'
             });
-            const closeBtn = createEl('div', { className: 'note-close', textContent: '×' });
+            const closeBtn = createEl('div', { className: 'note-close', textContent: '×', title: 'Delete note' });
 
             noteBody.append(noteContent, closeBtn);
             noteWrapper.appendChild(noteBody);
@@ -169,21 +176,56 @@
 
         function deleteNote(id) {
             const noteData = notes.get(id);
-            if (noteData) {
-                noteData.element.remove();
-                notes.delete(id);
-            }
+            if (!noteData) return;
+            noteData.element.remove();
+            notes.delete(id);
+            saveNotes();
         }
 
         function exitEditingState(noteContent) {
             const noteWrapper = noteContent.closest('.note-wrapper');
             noteWrapper.style.removeProperty('--is-editing');
-            if (noteContent.textContent.trim() === '') {
-                const id = noteWrapper.id.split('-')[1];
-                deleteNote(Number(id));
+            const id = Number(noteWrapper.id.split('-')[1]);
+            const noteData = notes.get(id);
+            if (noteData) {
+                noteData.content = noteContent.textContent;
+                if (noteContent.textContent.trim() === '') {
+                    deleteNote(id);
+                    return;
+                }
+                saveNotes();
             }
         }
 
+        // Persist notes to localStorage for demo / portfolio convenience
+        function saveNotes() {
+            try {
+                const data = Array.from(notes.entries()).map(([id, d]) => ({ id, x: d.x, y: d.y, content: d.content }));
+                localStorage.setItem('sticky-notes', JSON.stringify(data));
+            } catch (e) {
+                // ignore localStorage errors
+            }
+        }
+
+        function loadNotes() {
+            try {
+                const data = JSON.parse(localStorage.getItem('sticky-notes') || '[]');
+                if (data.length > 0) {
+                    data.forEach(item => {
+                        createNote(item.id, { x: item.x, y: item.y, content: item.content });
+                    });
+                    // trigger enter animation for loaded notes
+                    requestAnimationFrame(() => {
+                        document.querySelectorAll('.note-wrapper').forEach(n => n.classList.add('note-enter'));
+                    });
+                }
+                return data.length;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        // Event delegation: focus, blur and click handled at container level
         notesContainer.addEventListener('focusin', (e) => {
             if (e.target.classList.contains('note-content')) {
                 e.target.closest('.note-wrapper').style.setProperty('--is-editing', '1');
@@ -197,73 +239,88 @@
         });
 
         notesContainer.addEventListener('click', (e) => {
+            // delete via delegation
             if (e.target.classList.contains('note-close')) {
-                const id = e.target.closest('.note-wrapper').id.split('-')[1];
-                deleteNote(Number(id));
+                const id = Number(e.target.closest('.note-wrapper').id.split('-')[1]);
+                deleteNote(id);
             }
         });
 
+        // Pointer events with rAF batching for smoothness and lower CPU usage
         notesContainer.addEventListener('pointerdown', (e) => {
             const noteWrapper = e.target.closest('.note-wrapper');
-            if (!noteWrapper || e.target.classList.contains('note-content') || e.target.classList.contains('note-close')) {
-                return;
-            }
+            if (!noteWrapper || e.target.classList.contains('note-content') || e.target.classList.contains('note-close')) return;
 
             highestZ++;
             noteWrapper.style.zIndex = highestZ;
-            const id = noteWrapper.id.split('-')[1];
+            const id = Number(noteWrapper.id.split('-')[1]);
             activeNote = {
-                id: Number(id),
+                id,
                 element: noteWrapper,
                 offsetX: e.clientX - noteWrapper.getBoundingClientRect().left,
                 offsetY: e.clientY - noteWrapper.getBoundingClientRect().top,
                 isDragging: false
             };
             noteWrapper.setPointerCapture(e.pointerId);
+            lastPointerEvent = null;
         });
 
         notesContainer.addEventListener('pointermove', (e) => {
             if (!activeNote) return;
             activeNote.isDragging = true;
-
-            requestAnimationFrame(() => {
-                if (!activeNote) return;
-                let x = e.clientX - activeNote.offsetX;
-                let y = e.clientY - activeNote.offsetY;
-
-                // Constrain to viewport
-                const maxX = window.innerWidth - activeNote.element.offsetWidth;
-                const maxY = window.innerHeight - activeNote.element.offsetHeight;
-
-                x = Math.max(0, Math.min(x, maxX));
-                y = Math.max(0, Math.min(y, maxY));
-
-                activeNote.element.style.left = `${x}px`;
-                activeNote.element.style.top = `${y}px`;
-            });
+            lastPointerEvent = e;
+            if (!rafPending) {
+                rafPending = true;
+                requestAnimationFrame(processPointerMove);
+            }
         });
 
-        notesContainer.addEventListener('pointerup', (e) => {
-            if (!activeNote) return;
+        function processPointerMove() {
+            rafPending = false;
+            if (!activeNote || !lastPointerEvent) return;
+            const e = lastPointerEvent;
+            let x = e.clientX - activeNote.offsetX;
+            let y = e.clientY - activeNote.offsetY;
+            const maxX = window.innerWidth - activeNote.element.offsetWidth;
+            const maxY = window.innerHeight - activeNote.element.offsetHeight;
+            x = Math.max(0, Math.min(x, maxX));
+            y = Math.max(0, Math.min(y, maxY));
+            activeNote.element.style.left = `${x}px`;
+            activeNote.element.style.top = `${y}px`;
+            // update stored position immediately for persistence
+            const data = notes.get(activeNote.id);
+            if (data) {
+                data.x = x;
+                data.y = y;
+            }
+            lastPointerEvent = null;
+        }
 
+        function endPointerInteraction(e) {
+            if (!activeNote) return;
             if (activeNote.isDragging) {
                 const noteData = notes.get(activeNote.id);
                 if (noteData) {
-                    noteData.x = parseInt(activeNote.element.style.left);
-                    noteData.y = parseInt(activeNote.element.style.top);
+                    noteData.x = parseInt(activeNote.element.style.left) || noteData.x;
+                    noteData.y = parseInt(activeNote.element.style.top) || noteData.y;
                 }
+                saveNotes();
             }
-            activeNote.element.releasePointerCapture(e.pointerId);
+            try { activeNote.element.releasePointerCapture(e.pointerId); } catch (err) {}
             activeNote = null;
-        });
+            lastPointerEvent = null;
+        }
+
+        notesContainer.addEventListener('pointerup', endPointerInteraction);
+        notesContainer.addEventListener('pointercancel', endPointerInteraction);
 
         addNoteBtn.addEventListener('click', () => {
             const x = Math.random() * (window.innerWidth - 270);
             const y = Math.random() * (window.innerHeight - 200);
             const id = Date.now();
             const note = createNote(id, { x, y });
-            // trigger enter animation on next frame
             requestAnimationFrame(() => note.element.classList.add('note-enter'));
+            saveNotes();
         });
 
         // Staggered "popcorn" load animation: create several notes with delays
@@ -279,7 +336,10 @@
             }
         }
 
-        window.addEventListener('load', () => initPopcorn(6, 120));
+        window.addEventListener('load', () => {
+            const count = loadNotes();
+            if (!count) initPopcorn(6, 120);
+        });
     </script>
 </body>
 </html>
