@@ -36,6 +36,19 @@
             color: #333;
             transition: transform 0.2s, box-shadow 0.2s, background 0.3s, opacity 0.3s;
             container-type: inline-size;
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+        }
+
+        .note-enter {
+            animation: pop 360ms cubic-bezier(.2,.8,.2,1) forwards;
+        }
+
+        @keyframes pop {
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         @container style(--is-editing: 1) {
@@ -112,96 +125,161 @@
     <script>
         const notesContainer = document.getElementById('notesContainer');
         const addNoteBtn = document.getElementById('addNoteBtn');
-        let notes = [];
+        let notes = new Map();
+        let activeNote = null;
+        let highestZ = 0;
 
-        function createNote(x, y, content = 'New Note') {
-            const noteWrapper = document.createElement('div');
-            noteWrapper.className = 'note-wrapper';
-            noteWrapper.style.left = `${x}px`;
-            noteWrapper.style.top = `${y}px`;
-            noteWrapper.style.setProperty('--note-hue', Math.random() * 360);
-            noteWrapper.style.background = `hsla(var(--note-hue, 200), 70%, 80%, 0.7)`;
+        function createEl(tag, props = {}) {
+            const el = document.createElement(tag);
+            Object.assign(el, props);
+            if (props.style) {
+                Object.assign(el.style, props.style);
+            }
+            return el;
+        }
 
-            const noteBody = document.createElement('div');
-            noteBody.className = 'note-body';
+        function createNote(id, { x, y, content = 'New Note' }) {
+            const noteWrapper = createEl('div', {
+                className: 'note-wrapper',
+                id: `note-${id}`,
+                style: {
+                    left: `${x}px`,
+                    top: `${y}px`,
+                    '--note-hue': Math.random() * 360,
+                    background: `hsla(var(--note-hue, 200), 70%, 80%, 0.7)`
+                }
+            });
 
-            const noteContent = document.createElement('div');
-            noteContent.className = 'note-content';
-            noteContent.textContent = content;
-            noteContent.contentEditable = true; // Make content editable
+            const noteBody = createEl('div', { className: 'note-body' });
+            const noteContent = createEl('div', {
+                className: 'note-content',
+                textContent: content,
+                contentEditable: true
+            });
+            const closeBtn = createEl('div', { className: 'note-close', textContent: '×' });
 
-            const closeBtn = document.createElement('div');
-            closeBtn.className = 'note-close';
-            closeBtn.textContent = '×';
-
-            noteBody.appendChild(noteContent);
-            noteBody.appendChild(closeBtn);
+            noteBody.append(noteContent, closeBtn);
             noteWrapper.appendChild(noteBody);
             notesContainer.appendChild(noteWrapper);
 
             const noteData = { element: noteWrapper, content, x, y };
-            notes.push(noteData);
-
-            makeDraggable(noteWrapper, noteData);
-
-            closeBtn.addEventListener('click', () => {
-                noteWrapper.remove();
-                notes = notes.filter(n => n !== noteData);
-            });
-
-            // Auto-delete if content is empty when the note loses focus
-            noteContent.addEventListener('focus', () => {
-                noteWrapper.style.setProperty('--is-editing', '1');
-            });
-
-            noteContent.addEventListener('blur', () => {
-                noteWrapper.style.removeProperty('--is-editing');
-                if (noteContent.textContent.trim() === '') {
-                    noteWrapper.remove();
-                    notes = notes.filter(n => n !== noteData);
-                }
-            });
-
+            notes.set(id, noteData);
             return noteData;
         }
 
-        function makeDraggable(element, noteData) {
-            let isDragging = false;
-            let offsetX, offsetY;
-
-            element.addEventListener('mousedown', (e) => {
-                if (e.target.className === 'note-content' || e.target.className === 'note-close') {
-                    return;
-                }
-                isDragging = true;
-                offsetX = e.clientX - element.getBoundingClientRect().left;
-                offsetY = e.clientY - element.getBoundingClientRect().top;
-                element.style.zIndex = 1000;
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                const x = e.clientX - offsetX;
-                const y = e.clientY - offsetY;
-                element.style.left = `${x}px`;
-                element.style.top = `${y}px`;
-            });
-
-            document.addEventListener('mouseup', () => {
-                if (isDragging) {
-                    isDragging = false;
-                    element.style.zIndex = '';
-                    noteData.x = parseInt(element.style.left);
-                    noteData.y = parseInt(element.style.top);
-                }
-            });
+        function deleteNote(id) {
+            const noteData = notes.get(id);
+            if (noteData) {
+                noteData.element.remove();
+                notes.delete(id);
+            }
         }
 
-        addNoteBtn.addEventListener('click', () => {
-            const x = Math.random() * (window.innerWidth - 220);
-            const y = Math.random() * (window.innerHeight - 150);
-            createNote(x, y);
+        function exitEditingState(noteContent) {
+            const noteWrapper = noteContent.closest('.note-wrapper');
+            noteWrapper.style.removeProperty('--is-editing');
+            if (noteContent.textContent.trim() === '') {
+                const id = noteWrapper.id.split('-')[1];
+                deleteNote(Number(id));
+            }
+        }
+
+        notesContainer.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('note-content')) {
+                e.target.closest('.note-wrapper').style.setProperty('--is-editing', '1');
+            }
         });
+
+        notesContainer.addEventListener('focusout', (e) => {
+            if (e.target.classList.contains('note-content')) {
+                exitEditingState(e.target);
+            }
+        });
+
+        notesContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('note-close')) {
+                const id = e.target.closest('.note-wrapper').id.split('-')[1];
+                deleteNote(Number(id));
+            }
+        });
+
+        notesContainer.addEventListener('pointerdown', (e) => {
+            const noteWrapper = e.target.closest('.note-wrapper');
+            if (!noteWrapper || e.target.classList.contains('note-content') || e.target.classList.contains('note-close')) {
+                return;
+            }
+
+            highestZ++;
+            noteWrapper.style.zIndex = highestZ;
+            const id = noteWrapper.id.split('-')[1];
+            activeNote = {
+                id: Number(id),
+                element: noteWrapper,
+                offsetX: e.clientX - noteWrapper.getBoundingClientRect().left,
+                offsetY: e.clientY - noteWrapper.getBoundingClientRect().top,
+                isDragging: false
+            };
+            noteWrapper.setPointerCapture(e.pointerId);
+        });
+
+        notesContainer.addEventListener('pointermove', (e) => {
+            if (!activeNote) return;
+            activeNote.isDragging = true;
+
+            requestAnimationFrame(() => {
+                if (!activeNote) return;
+                let x = e.clientX - activeNote.offsetX;
+                let y = e.clientY - activeNote.offsetY;
+
+                // Constrain to viewport
+                const maxX = window.innerWidth - activeNote.element.offsetWidth;
+                const maxY = window.innerHeight - activeNote.element.offsetHeight;
+
+                x = Math.max(0, Math.min(x, maxX));
+                y = Math.max(0, Math.min(y, maxY));
+
+                activeNote.element.style.left = `${x}px`;
+                activeNote.element.style.top = `${y}px`;
+            });
+        });
+
+        notesContainer.addEventListener('pointerup', (e) => {
+            if (!activeNote) return;
+
+            if (activeNote.isDragging) {
+                const noteData = notes.get(activeNote.id);
+                if (noteData) {
+                    noteData.x = parseInt(activeNote.element.style.left);
+                    noteData.y = parseInt(activeNote.element.style.top);
+                }
+            }
+            activeNote.element.releasePointerCapture(e.pointerId);
+            activeNote = null;
+        });
+
+        addNoteBtn.addEventListener('click', () => {
+            const x = Math.random() * (window.innerWidth - 270);
+            const y = Math.random() * (window.innerHeight - 200);
+            const id = Date.now();
+            const note = createNote(id, { x, y });
+            // trigger enter animation on next frame
+            requestAnimationFrame(() => note.element.classList.add('note-enter'));
+        });
+
+        // Staggered "popcorn" load animation: create several notes with delays
+        function initPopcorn(count = 6, gap = 120) {
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * (window.innerWidth - 270);
+                    const y = Math.random() * (window.innerHeight - 200);
+                    const id = Date.now() + i;
+                    const note = createNote(id, { x, y });
+                    note.element.classList.add('note-enter');
+                }, i * gap);
+            }
+        }
+
+        window.addEventListener('load', () => initPopcorn(6, 120));
     </script>
 </body>
 </html>
